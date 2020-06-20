@@ -13,6 +13,7 @@
 '''
 Transaction family class for simplewallet.
 '''
+import json
 import traceback
 import sys
 import hashlib
@@ -84,7 +85,7 @@ class CrowdFundingTransactionHandler(TransactionHandler):
         elif operation == "deposit":
             self._make_deposit(context, amount, from_key)
         elif operation == "createtier":
-            self._make_createtier(context, amount, tierName, from_key)
+            self._make_createtier(contexsawtooth.hyperledger.org/t, amount, tierName, from_key)
         elif operation == "withdraw":
             self._make_withdraw(context, amount, from_key)
         elif operation == "transfer":
@@ -100,15 +101,18 @@ class CrowdFundingTransactionHandler(TransactionHandler):
         LOGGER.info('Got the key {} and the wallet address {} '.format(
             from_key, wallet_address))
         current_entry = context.get_state([wallet_address])
-        new_minamount = 0
-        dict = {'key' : 'value'}
 
         if current_entry == []:
             LOGGER.info('No previous minamount, creating new minamount {} '
                 .format(from_key))
-            new_minamount = int(amount)
-            state_data = (str(new_minamount)+","+str(0)).encode('utf-8')
-            addresses = context.set_state({wallet_address: state_data})
+
+            dict_statedata = {}
+            minamount = 'min_amount'
+            amount1 = int(amount)
+            dict_statedata[minamount] = amount1
+            enc_dict_statedata = json.dumps(dict_statedata).encode('utf-8')
+            LOGGER.info(type(enc_dict_statedata))
+            addresses = context.set_state({wallet_address: enc_dict_statedata})
             if len(addresses) < 1:
                 raise InternalError("State Error")
         else:
@@ -117,39 +121,55 @@ class CrowdFundingTransactionHandler(TransactionHandler):
 
     def _make_deposit(self, context, amount, from_key):
         wallet_address = self._get_wallet_address(from_key)
+        totalbalance = 0
         if (int(amount) <= 0):
             LOGGER.info('amount cant be less than 0')
         else:
             LOGGER.info('Got the key {} and the wallet address {} '.format(
                 from_key, wallet_address))
-            current_entry = context.get_state([wallet_address])
-            current_state_data = str(current_entry[0].data.decode('utf-8'))
-            LOGGER.info('current_state_data=  ' + current_state_data)
-            mylist = current_state_data.split(",")
-            mylist[1] = mylist[1].replace("'", "")
-            LOGGER.info('current balance = ' + mylist[1])
-            LOGGER.info('amount= ' + str(amount))
-            mylist[1] = (int(mylist[1]) + int(amount))
-            LOGGER.info('new balance = ' + str(mylist[1]))
-            new_state_data = str(mylist[0]) + "," + str(mylist[1])
-            new_state_data = new_state_data.encode('utf-8')
-            LOGGER.info('new_state_data=  ' + str(new_state_data.decode('utf-8')))
-            addresses = context.set_state(
-                {self._get_wallet_address(from_key): new_state_data})
-            if (int(mylist[1]) >= int(mylist[0])):
-                LOGGER.info('Crowdfunding Project founded!')
+            enc_dict_statedata = context.get_state([wallet_address])
+            LOGGER.info(enc_dict_statedata)
+            dec_dict_statedata = json.loads(enc_dict_statedata[0].data.decode('utf-8'))
+            LOGGER.info(type(dec_dict_statedata))
 
+            if from_key in dec_dict_statedata.keys(): dec_dict_statedata[from_key]+= int(amount)
+            else: dec_dict_statedata[from_key] = int(amount)
+            enc_dict=json.dumps(dec_dict_statedata).encode('utf-8')
+            _=context.set_state({wallet_address: enc_dict})
+
+            LOGGER.info(dec_dict_statedata)
+
+        """ dec_dict_statedata[context] += amount
+            LOGGER.info(dec_dict_statedata)
+
+            if from_key in dec_dict_statedata:
+                LOGGER.info('there is no balance yet')
+                dec_dict_statedata[from_key] = amount
+            else:
+                balance = dec_dict_statedata[from_key]
+                LOGGER.info('old balance = ' + balance)
+                dec_dict_statedata[from_key] = balance + amount1
+
+            LOGGER.info('new balance = ' + dec_statedata[from_key])
+            enc_statedata = json.dumps(dec_statedata).encode('utf-8')
+            addresses = context.set_state(
+                {self._get_wallet_address(from_key): enc_statedata})
+            for key in dec_statedata:
+                totalbalance = totalbalance + dec_statedata[key]
+            minamount = dec_statedata[minamount]
+            if (totalbalance >= minamount):
+                LOGGER.info('Crowdfunding Project founded!')
+"""
     def _make_createtier(self, context, amount, tierName, from_key):
         LOGGER.info('creating a new Tier: ' + ' amount: ' + str(amount) +
             ' tierName: ' +str(tierName) + ' from_key: ' + str(from_key))
         wallet_address = self._get_wallet_address(from_key)
         LOGGER.info('Got the key {} and the wallet address {} '.format(
             from_key, wallet_address))
-        key = tierName
-        amount = value
-        dict_tier[key] = value
-
-
+        encoded_entry = context.get_state([wallet_address])
+        decoded_entry = pickle.loads(encoded_entry.decode('base64', 'strict'))
+        decoded_entry[tierName] = amount
+        LOGGER.info(decoded_entry)
 
     def _decode_data(self, data):
         return data.decode().split(',')
