@@ -145,7 +145,10 @@ class CrowdFundingTransactionHandler(TransactionHandler):
         wallet_address = self._get_wallet_address(from_key)
         LOGGER.info('Got the key {} and the wallet address {} '.format(
             from_key, wallet_address))
-        #currentstate = context.get_state([wallet_address])
+        key = tierName
+        amount = value
+        dict_tier[key] = value
+
 
 
     def _decode_data(self, data):
