@@ -70,10 +70,7 @@ class CrowdFundingTransactionHandler(TransactionHandler):
         payload_list = transaction.payload.decode().split(",")
         operation = payload_list[0]
         amount = payload_list[1]
-        try:
-            tierName = payload_list[2]
-        except:
-            LOGGER.info("no tierName submitted")
+
         # Get the public key sent from the client.
         from_key = header.signer_public_key
 
@@ -84,8 +81,12 @@ class CrowdFundingTransactionHandler(TransactionHandler):
             self._make_createcampaign(context, amount, from_key)
         elif operation == "deposit":
             self._make_deposit(context, amount, from_key)
+        elif operation == "evaluate":
+            self._make_evaluate(context, from_key)
         elif operation == "createtier":
-            self._make_createtier(contexsawtooth.hyperledger.org/t, amount, tierName, from_key)
+            if len(payload_list) == 3:
+                tierName = payload_list[2]
+            self._make_createtier(context, amount, tierName, from_key)
         elif operation == "withdraw":
             self._make_withdraw(context, amount, from_key)
         elif operation == "transfer":
@@ -103,7 +104,7 @@ class CrowdFundingTransactionHandler(TransactionHandler):
         current_entry = context.get_state([wallet_address])
 
         if current_entry == []:
-            LOGGER.info('No previous minamount, creating new minamount {} '
+            LOGGER.info('No previous min_amount, creating new minamount {} '
                 .format(from_key))
 
             dict_statedata = {}
@@ -119,63 +120,104 @@ class CrowdFundingTransactionHandler(TransactionHandler):
             raise InvalidTransaction('Campaign with address {} already exists '
                 .format(from_key))
 
+    def _make_evaluate(self, context, from_key):
+        camp_balance = 0
+        tier_dict = {}
+        tier_list = []
+        tier_founder_dict ={}
+        founder_dict= {}
+
+        wallet_address = self._get_wallet_address(from_key)
+        LOGGER.info('Got the key {} and the wallet address {} '.format(from_key, wallet_address))
+        enc_dict_statedata = context.get_state([wallet_address])
+
+        if (len(enc_dict_statedata) == 0):
+            raise InvalidTransaction("No Campaign on the address: " + str(wallet_address))
+        else:
+            dec_dict_statedata = json.loads(enc_dict_statedata[0].data.decode('utf-8'))
+
+        LOGGER.info("dec_dict_statedata= " + str(dec_dict_statedata))
+        min_amount = dec_dict_statedata['min_amount']
+        LOGGER.info("Minimum amount needed before funding= " + str(min_amount))
+        keylist = list(dec_dict_statedata.keys())
+
+        for key, value in dec_dict_statedata.items():
+            if (len(key) < 15 ) and (key != 'min_amount'):
+                tier_dict[key] = value
+            elif (key != 'min_amount'):
+                founder_dict[key] = value
+
+        LOGGER.info("founder_dict= " + str(founder_dict))
+        LOGGER.info("tier_dict = " + str(tier_dict))
+
+        for key in founder_dict.keys():
+            if (len(key) > 15 ):
+                camp_balance += founder_dict[key]
+        LOGGER.info("Campaign has a balance of: " + str(camp_balance))
+
+        if camp_balance >= min_amount:
+            LOGGER.info("Campaign sucessufully founded!")
+        else:
+            LOGGER.info("Campaign has not been sucessufully founded!")
+
+        for key, value in tier_dict.items():
+            for key2, value2 in founder_dict.items():
+                if (value2 >= value):
+                    tier_list.append(key2)
+
+            LOGGER.info("Tier: " + key + " has been reached by addresses: " + str(tier_list))
+            tier_founder_dict[key] = tier_list
+            tier_list.clear()
+
+        LOGGER.info("tier_dict_addresses: " + str(tier_founder_dict))
+
+
     def _make_deposit(self, context, amount, from_key):
         wallet_address = self._get_wallet_address(from_key)
-        totalbalance = 0
         if (int(amount) <= 0):
-            LOGGER.info('amount cant be less than 0')
+            raise InvalidTransaction("The amount cannot be <= 0")
+
+        LOGGER.info('Got the key {} and the wallet address {} '.format(from_key, wallet_address))
+
+        enc_dict_statedata = context.get_state([wallet_address])
+        LOGGER.info(type(enc_dict_statedata))
+        LOGGER.info(str(enc_dict_statedata))
+        if (len(enc_dict_statedata) == 0):
+            dec_dict_statedata = {}
+            dec_dict_statedata[from_key] = int(amount)
+
         else:
-            LOGGER.info('Got the key {} and the wallet address {} '.format(
-                from_key, wallet_address))
-            enc_dict_statedata = context.get_state([wallet_address])
-            LOGGER.info(enc_dict_statedata)
             dec_dict_statedata = json.loads(enc_dict_statedata[0].data.decode('utf-8'))
-            LOGGER.info(type(dec_dict_statedata))
-
-            if from_key in dec_dict_statedata.keys(): dec_dict_statedata[from_key]+= int(amount)
-            else: dec_dict_statedata[from_key] = int(amount)
-            enc_dict=json.dumps(dec_dict_statedata).encode('utf-8')
-            _=context.set_state({wallet_address: enc_dict})
-
-            LOGGER.info(dec_dict_statedata)
-
-        """ dec_dict_statedata[context] += amount
-            LOGGER.info(dec_dict_statedata)
-
-            if from_key in dec_dict_statedata:
-                LOGGER.info('there is no balance yet')
-                dec_dict_statedata[from_key] = amount
+            if (from_key in dec_dict_statedata.keys()):
+                LOGGER.info('Account has balance already, adding')
+                dec_dict_statedata[from_key]+= int(amount)
             else:
-                balance = dec_dict_statedata[from_key]
-                LOGGER.info('old balance = ' + balance)
-                dec_dict_statedata[from_key] = balance + amount1
+                LOGGER.info('Account has no balance yet')
+                dec_dict_statedata[from_key] = int(amount)
 
-            LOGGER.info('new balance = ' + dec_statedata[from_key])
-            enc_statedata = json.dumps(dec_statedata).encode('utf-8')
-            addresses = context.set_state(
-                {self._get_wallet_address(from_key): enc_statedata})
-            for key in dec_statedata:
-                totalbalance = totalbalance + dec_statedata[key]
-            minamount = dec_statedata[minamount]
-            if (totalbalance >= minamount):
-                LOGGER.info('Crowdfunding Project founded!')
-"""
+        LOGGER.info(dec_dict_statedata)
+        enc_dict=json.dumps(dec_dict_statedata).encode('utf-8')
+        _=context.set_state({wallet_address: enc_dict})
+
     def _make_createtier(self, context, amount, tierName, from_key):
         LOGGER.info('creating a new Tier: ' + ' amount: ' + str(amount) +
             ' tierName: ' +str(tierName) + ' from_key: ' + str(from_key))
         wallet_address = self._get_wallet_address(from_key)
-        LOGGER.info('Got the key {} and the wallet address {} '.format(
-            from_key, wallet_address))
-        encoded_entry = context.get_state([wallet_address])
-        decoded_entry = pickle.loads(encoded_entry.decode('base64', 'strict'))
-        decoded_entry[tierName] = amount
-        LOGGER.info(decoded_entry)
-
-    def _decode_data(self, data):
-        return data.decode().split(',')
-
-    def _encode_data(self, data):
-        return ','.join(data).encode()
+        enc_dict_statedata = context.get_state([wallet_address])
+        if (len(enc_dict_statedata) == 0):
+            raise InvalidTransaction("This account is empty, create campaign first")
+        dec_dict_statedata = json.loads(enc_dict_statedata[0].data.decode('utf-8'))
+        if not ('min_amount' in dec_dict_statedata):
+            raise InvalidTransaction("This Account has no Campaign, Create campaign first!")
+        if ( len(tierName) > 15 or len(tierName) < 1 ):
+            LOGGER.info('tierName must be between 1 and 10 characters long, tierName length: ' + str(len(tierName)))
+        elif (tierName in dec_dict_statedata.keys()):
+            LOGGER.info('Tier already exists in this campaign use different name')
+        else:
+            dec_dict_statedata[tierName] = int(amount)
+            LOGGER.info(dec_dict_statedata)
+            enc_dict=json.dumps(dec_dict_statedata).encode('utf-8')
+            _=context.set_state({wallet_address: enc_dict})
 
     def _make_transfer(self, context, transfer_amount, to_key, from_key):
         transfer_amount = int(transfer_amount)
@@ -188,31 +230,41 @@ class CrowdFundingTransactionHandler(TransactionHandler):
             from_key, wallet_address))
         LOGGER.info('Got the to key {} and the to wallet address {} '.format(
             to_key, wallet_to_address))
-        current_entry = context.get_state([wallet_address])
-        current_entry_to = context.get_state([wallet_to_address])
-        new_balance = 0
+        enc_dict_statedata_from = context.get_state([wallet_address])
+        enc_dict_statedata_to = context.get_state([wallet_to_address])
+        new_amount = 0
+        old_amount = 0
 
-        if current_entry == []:
-            LOGGER.info('No user (debtor) with the key {} '.format(from_key))
-        if current_entry_to == []:
-            LOGGER.info('No user (creditor) with the key {} '.format(to_key))
+        if (len(enc_dict_statedata_from) == 0):
+            raise InvalidTransaction('Sender Account has no Balance yet')
 
-        balance = int(current_entry[0].data)
-        balance_to = int(current_entry_to[0].data)
-        if balance < transfer_amount:
-            raise InvalidTransaction('Not enough money. ' +
-                'The amount should be less or equal to {} '.format(balance))
-        else:
-            LOGGER.info("Debiting balance with {}".format(transfer_amount))
-            update_debtor_balance = balance - int(transfer_amount)
-            state_data = str(update_debtor_balance).encode('utf-8')
-            context.set_state({wallet_address: state_data})
-            update_beneficiary_balance = balance_to + int(transfer_amount)
-            state_data = str(update_beneficiary_balance).encode('utf-8')
-            context.set_state({wallet_to_address: state_data})
+        if (len(enc_dict_statedata_to) == 0):
+            raise InvalidTransaction('Receiver Account has no Balance yet')
+
+        dec_dict_statedata_from = json.loads(enc_dict_statedata_from[0].data.decode('utf-8'))
+        dec_dict_statedata_to = json.loads(enc_dict_statedata_to[0].data.decode('utf-8'))
+        LOGGER.info('dec_dict_statedata_to: ' + str(dec_dict_statedata_to))
+        if (from_key in dec_dict_statedata_to):
+            old_amount = dec_dict_statedata_to[from_key]
+        new_amount = old_amount + transfer_amount
+        dec_dict_statedata_from[from_key] = int(dec_dict_statedata_from[from_key] - transfer_amount)
+        dec_dict_statedata_to[from_key] = new_amount
+        if dec_dict_statedata_from[from_key] <0 :
+            raise InvalidTransaction("Sender account has not enough balance")
+
+        if not ('min_amount' in dec_dict_statedata_to):
+            raise InvalidTransaction("Can only transfer money to a campaign")
+
+        LOGGER.info('new state data sender: ' + str(dec_dict_statedata_from))
+        LOGGER.info('new state data receiver: ' + str(dec_dict_statedata_to))
+        enc_dict_from=json.dumps(dec_dict_statedata_from).encode('utf-8')
+        _=context.set_state({wallet_address: enc_dict_from})
+        enc_dict_to=json.dumps(dec_dict_statedata_to).encode('utf-8')
+        _=context.set_state({wallet_to_address: enc_dict_to})
 
     def _get_wallet_address(self, from_key):
         return _hash(FAMILY_NAME.encode('utf-8'))[0:6] + _hash(from_key.encode('utf-8'))[0:64]
+
 
 def setup_loggers():
     logging.basicConfig()
