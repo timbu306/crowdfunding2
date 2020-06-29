@@ -13,10 +13,8 @@
 # limitations under the License.
 # ------------------------------------------------------------------------------
 '''
-Command line interface for the simplewallet transaction family.
-
-Parses command line arguments and passes it to the SimpleWalletClient class
-to process.
+CLI für die crowdfunding Transaction Family 
+Parst Kommandozeilen Argumente zur SimpleWalletClient Klasse zur weiteren Verarbeitung.
 '''
 
 import argparse
@@ -58,6 +56,18 @@ def setup_loggers(verbose_level):
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
     logger.addHandler(create_console_handler(verbose_level))
+
+def add_evaluate_parser(subparsers, parent_parser):
+    '''Define the "evaluate" command line parsing.'''
+    parser = subparsers.add_parser(
+    'evaluate',
+	help='create an evaluation',
+	parents=[parent_parser])
+
+    parser.add_argument(
+    'crowdfundingName',
+    type=str,
+    help= 'the name of the crowdfunding campaign')
 
 def add_createcampaign_parser(subparsers, parent_parser):
     '''Define the "createcampaign" command line parsing.'''
@@ -203,6 +213,7 @@ def create_parser(prog_name):
     add_balance_parser(subparsers, parent_parser)
     add_transfer_parser(subparsers, parent_parser)
     add_createtier_parser(subparsers, parent_parser)
+    add_evaluate_parser(subparsers, parent_parser)
 
     return parser
 
@@ -219,6 +230,16 @@ def _get_pubkeyfile(customerName):
     key_dir = os.path.join(home, ".sawtooth", "keys")
 
     return '{}/{}.pub'.format(key_dir, customerName)
+
+def do_evaluate(args):
+    '''Implements the "do_evaluate" subcommand by calling the client class.'''
+    keyfile = _get_keyfile(args.crowdfundingName)
+
+    client = CrowdFundingClient(baseUrl=DEFAULT_URL, keyFile=keyfile)
+
+    response = client.evaluate(args.crowdfundingName)
+
+    print("Response: {}".format(response))
 
 def do_deposit(args):
     '''Implements the "deposit" subcommand by calling the client class.'''
@@ -300,6 +321,8 @@ def main(prog_name=os.path.basename(sys.argv[0]), args=None):
         do_deposit(args)
     elif args.command == 'withdraw':
         do_withdraw(args)
+    elif args.command == 'evaluate':
+        do_evaluate(args)
     elif args.command == 'createtier':
         do_createtier(args)
     elif args.command == 'balance':

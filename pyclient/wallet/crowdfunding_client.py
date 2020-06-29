@@ -92,6 +92,11 @@ class CrowdFundingClient(object):
 	        "createcampaign",
 	        value)
 
+    def evaluate(self, value):
+        return self._wrap_and_send(
+            "evaluate",
+            value)
+
     def createtier(self, tierName, value):
         return self._wrap_and_send(
             "createtier",

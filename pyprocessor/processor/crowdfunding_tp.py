@@ -11,7 +11,7 @@
 # limitations under the License.
 # ------------------------------------------------------------------------------
 '''
-Transaction family class for simplewallet.
+Transaction Family class für die Crowdunfing Transaction Family
 '''
 import json
 import traceback
@@ -29,18 +29,18 @@ LOGGER = logging.getLogger(__name__)
 FAMILY_NAME = "crowdfunding"
 
 def _hash(data):
-    '''Compute the SHA-512 hash and return the result as hex characters.'''
+    '''erstellt den SHA512 Hash und liefert ihn zurück.'''
     return hashlib.sha512(data).hexdigest()
 
-# Prefix for simplewallet is the first six hex digits of SHA-512(TF name).
+# Prefix für namespace, sind die ersten 6 Hex Character des SHA512 Hashes vom Namen der Transaction Family
 sw_namespace = _hash(FAMILY_NAME.encode('utf-8'))[0:6]
 
 class CrowdFundingTransactionHandler(TransactionHandler):
     '''
-    Transaction Processor class for the simplewallet transaction family.
-
-    This with the validator using the accept/get/set functions.
-    It implements functions to deposit, withdraw, and transfer money.
+    Transaction Prozessor Klasse für die crowdfunding Transaction Family.
+    Es werden Funktionen wie
+    deposit,withdraw,transfer,createcampaign,evaluate und transfer
+    implementiert
     '''
 
     def __init__(self, namespace_prefix):
@@ -59,22 +59,19 @@ class CrowdFundingTransactionHandler(TransactionHandler):
         return [self._namespace_prefix]
 
     def apply(self, transaction, context):
-        '''This implements the apply function for this transaction handler.
-
-           This function does most of the work for this class by processing
-           a single transaction for the simplewallet transaction family.
+        '''Diese Funktion führt die Verarbeitung einer einzelnen Transaktion durch
         '''
 
-        # Get the payload and extract simplewallet-specific information.
+        # Payload wird gelesen und crowdfunding spezifische Informationen ausgelesen
         header = transaction.header
         payload_list = transaction.payload.decode().split(",")
         operation = payload_list[0]
         amount = payload_list[1]
 
-        # Get the public key sent from the client.
+        # Public Key des Senders
         from_key = header.signer_public_key
 
-        # Perform the operation.
+        # Durchführen der Operation
         LOGGER.info("Operation = "+ operation)
 
         if operation == "createcampaign":
@@ -274,7 +271,7 @@ def main():
     '''Entry-point function for the simplewallet transaction processor.'''
     setup_loggers()
     try:
-        # Register the transaction handler and start it.
+        # Regestrieren und starten des Transaction Handlers.
         processor = TransactionProcessor(url='tcp://validator:4004')
 
         handler = CrowdFundingTransactionHandler(sw_namespace)
