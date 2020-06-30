@@ -37,8 +37,8 @@ sw_namespace = _hash(FAMILY_NAME.encode('utf-8'))[0:6]
 
 class CrowdFundingTransactionHandler(TransactionHandler):
     '''
-    Transaction Prozessor Klasse für die crowdfunding Transaction Family.
-    Es werden Funktionen wie
+    Transaction Processor Klasse für die "crowdfunding" Transaction Family.
+    Es werden Funktionen
     deposit,withdraw,transfer,createcampaign,evaluate und transfer
     implementiert
     '''
@@ -268,7 +268,7 @@ def setup_loggers():
     logging.getLogger().setLevel(logging.DEBUG)
 
 def main():
-    '''Entry-point function for the simplewallet transaction processor.'''
+    '''Entry-point Funktion des crowdfunding transaction processor.'''
     setup_loggers()
     try:
         # Regestrieren und starten des Transaction Handlers.

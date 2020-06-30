@@ -14,7 +14,7 @@
 # ------------------------------------------------------------------------------
 '''
 CLI für die crowdfunding Transaction Family 
-Parst Kommandozeilen Argumente zur SimpleWalletClient Klasse zur weiteren Verarbeitung.
+Parst Kommandozeilen Argumente zur Crowdfunding Klasse zur weiteren Verarbeitung.
 '''
 
 import argparse
@@ -306,7 +306,7 @@ def do_transfer(args):
     print("Response: {}".format(response))
 
 def main(prog_name=os.path.basename(sys.argv[0]), args=None):
-    '''Entry point function for the client CLI.'''
+    '''Entry point function für das Client Command Line Interface'''
     if args is None:
         args = sys.argv[1:]
     parser = create_parser(prog_name)

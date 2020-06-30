@@ -13,7 +13,7 @@
 # limitations under the License.
 # ------------------------------------------------------------------------------
 '''
-This SimpleWalletClient class interfaces with Sawtooth through the REST API.
+Diese Client Klasse kommuniziert mit Sawtooth durch das REST API Interface
 '''
 
 import hashlib
@@ -41,15 +41,14 @@ def _hash(data):
 
 
 class CrowdFundingClient(object):
-    '''Client simple wallet class.
-
-    This supports deposit, withdraw, transfer, and balance functions.
+    '''
+	Erstellt Client crowdfunding Klasse
     '''
 
     def __init__(self, baseUrl, keyFile=None):
-        '''Initialize the client class.
+        '''Initialisiert die Crowdfunding Klasse. Handling des Key Pairs und Erstellung der Adresse
 
-           This is mainly getting the key pair and computing the address.
+      
         '''
 
         self._baseUrl = baseUrl
@@ -145,7 +144,7 @@ class CrowdFundingClient(object):
                          suffix,
                          data=None,
                          contentType=None):
-        '''Send a REST command to the Validator via the REST API.'''
+        '''Sendet ein REST command zum Validator mittels REST API.'''
 
         if self._baseUrl.startswith("http://"):
             url = "{}/{}".format(self._baseUrl, suffix)
@@ -179,9 +178,7 @@ class CrowdFundingClient(object):
     def _wrap_and_send(self,
                        action,
                        *values):
-        '''Create a transaction, then wrap it in a batch.
-
-           Even single transactions must be wrapped into a batch.
+        '''Erstellt eine Transaktion, verpackt sie in ein Batch
         '''
 
         # Generate a csv utf-8 encoded string as payload
